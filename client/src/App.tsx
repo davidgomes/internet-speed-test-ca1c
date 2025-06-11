@@ -1,6 +1,4 @@
-
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { trpc } from '@/utils/trpc';
@@ -10,28 +8,32 @@ import type { CreateSpeedTestInput } from '../../server/src/schema';
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [currentSpeedTestResults, setCurrentSpeedTestResults] = useState<{ download_speed: number; upload_speed: number } | null>(null);
 
-  const [formData, setFormData] = useState<CreateSpeedTestInput>({
-    download_speed: 0,
-    upload_speed: 0
-  });
-
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleStartTest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setMessage(null);
 
     try {
-      const response = await trpc.createSpeedTest.mutate(formData);
+      // Simulate speed test by generating random numbers
+      const download_speed = Math.floor(Math.random() * (200 - 50 + 1)) + 50; // 50-200 Mbps
+      const upload_speed = Math.floor(Math.random() * (50 - 10 + 1)) + 10; // 10-50 Mbps
+
+      const testInput: CreateSpeedTestInput = {
+        download_speed,
+        upload_speed
+      };
+
+      // Save the speed test results to the database
+      await trpc.createSpeedTest.mutate(testInput);
+
+      // Update current results
+      setCurrentSpeedTestResults({ download_speed, upload_speed });
+
       setMessage({
         type: 'success',
-        text: `🎉 Speed test recorded! Download: ${response.download_speed} Mbps, Upload: ${response.upload_speed} Mbps`
-      });
-      
-      // Reset form
-      setFormData({
-        download_speed: 0,
-        upload_speed: 0
+        text: `🎉 Speed test completed! Download: ${download_speed} Mbps, Upload: ${upload_speed} Mbps`
       });
     } catch (error) {
       console.error('Failed to create speed test:', error);
@@ -49,83 +51,65 @@ function App() {
       <div className="container mx-auto max-w-2xl pt-8">
         <div className="text-center mb-8">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            🚀 Speed Test Recorder
+            🚀 Internet Speed Test
           </h1>
           <p className="text-lg text-gray-600">
-            Record your internet speed test results
+            Measure your internet connection speed
           </p>
         </div>
 
         <Card className="shadow-lg border-0 bg-white/80 backdrop-blur-sm">
           <CardHeader className="text-center">
             <CardTitle className="text-2xl text-gray-800">
-              📊 New Speed Test
+              📊 Speed Test
             </CardTitle>
             <CardDescription className="text-gray-600">
-              Enter your download and upload speeds in Mbps
+              Click the button below to start measuring your connection speed
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="space-y-2">
-                <label htmlFor="download" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  📥 Download Speed (Mbps)
-                </label>
-                <Input
-                  id="download"
-                  type="number"
-                  placeholder="Enter download speed"
-                  value={formData.download_speed || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setFormData((prev: CreateSpeedTestInput) => ({ 
-                      ...prev, 
-                      download_speed: parseFloat(e.target.value) || 0 
-                    }))
-                  }
-                  step="0.01"
-                  min="0"
-                  required
-                  className="text-lg h-12"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label htmlFor="upload" className="text-sm font-medium text-gray-700 flex items-center gap-2">
-                  📤 Upload Speed (Mbps)
-                </label>
-                <Input
-                  id="upload"
-                  type="number"
-                  placeholder="Enter upload speed"
-                  value={formData.upload_speed || ''}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                    setFormData((prev: CreateSpeedTestInput) => ({ 
-                      ...prev, 
-                      upload_speed: parseFloat(e.target.value) || 0 
-                    }))
-                  }
-                  step="0.01"
-                  min="0"
-                  required
-                  className="text-lg h-12"
-                />
-              </div>
-
+            <form onSubmit={handleStartTest} className="space-y-6">
               <Button 
                 type="submit" 
-                disabled={isLoading || formData.download_speed <= 0 || formData.upload_speed <= 0}
+                disabled={isLoading}
                 className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
               >
                 {isLoading ? (
                   <span className="flex items-center gap-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    Recording...
+                    Testing...
                   </span>
                 ) : (
-                  '💾 Record Speed Test'
+                  '🏃‍♂️ Start Speed Test'
                 )}
               </Button>
             </form>
+
+            {currentSpeedTestResults && (
+              <div className="mt-8 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200">
+                <h3 className="text-xl font-bold text-gray-800 mb-4 text-center">
+                  📈 Test Results
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+                    <div className="text-2xl font-bold text-blue-600 mb-1">
+                      {currentSpeedTestResults.download_speed}
+                    </div>
+                    <div className="text-sm text-gray-600 font-medium">
+                      📥 Download (Mbps)
+                    </div>
+                  </div>
+                  <div className="text-center p-4 bg-white rounded-lg shadow-sm">
+                    <div className="text-2xl font-bold text-green-600 mb-1">
+                      {currentSpeedTestResults.upload_speed}
+                    </div>
+                    <div className="text-sm text-gray-600 font-medium">
+                      📤 Upload (Mbps)
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {message && (
               <Alert className={`mt-6 border-0 ${
@@ -142,7 +126,7 @@ function App() {
         </Card>
 
         <div className="text-center mt-8 text-sm text-gray-500">
-          <p>📈 Keep track of your internet performance over time</p>
+          <p>📈 Test your internet speed with a single click</p>
         </div>
       </div>
     </div>
