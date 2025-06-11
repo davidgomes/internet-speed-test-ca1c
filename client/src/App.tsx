@@ -2,13 +2,14 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { trpc } from '@/utils/trpc';
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import type { CreateSpeedTestInput } from '../../server/src/schema';
 
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [currentSpeedTestResults, setCurrentSpeedTestResults] = useState<{ download_speed: number; upload_speed: number } | null>(null);
+  const [latestTest, setLatestTest] = useState<{ download_speed: number; upload_speed: number; created_at: Date } | null>(null);
 
   const measureDownloadSpeed = async (): Promise<number> => {
     const testDataSize = 5 * 1024 * 1024; // 5 MB
@@ -37,6 +38,19 @@ function App() {
     return uploadSpeedMbps;
   };
 
+  const loadLatestTest = useCallback(async () => {
+    try {
+      const result = await trpc.getLatestSpeedTest.query();
+      setLatestTest(result);
+    } catch (error) {
+      console.error('Failed to load latest speed test:', error);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadLatestTest();
+  }, [loadLatestTest]);
+
   const handleStartTest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -53,12 +67,19 @@ function App() {
       };
 
       // Save the speed test results to the database
-      await trpc.createSpeedTest.mutate(testInput);
+      const savedTest = await trpc.createSpeedTest.mutate(testInput);
 
       // Update current results
       setCurrentSpeedTestResults({ 
         download_speed: downloadSpeed, 
         upload_speed: uploadSpeed 
+      });
+
+      // Update latest test with the newly created test
+      setLatestTest({
+        download_speed: savedTest.download_speed,
+        upload_speed: savedTest.upload_speed,
+        created_at: savedTest.created_at
       });
 
       setMessage({
@@ -154,6 +175,39 @@ function App() {
             )}
           </CardContent>
         </Card>
+
+        {latestTest && !currentSpeedTestResults && (
+          <Card className="mt-6 bg-gray-50/80 backdrop-blur-sm border-gray-200">
+            <CardHeader className="text-center pb-4">
+              <CardTitle className="text-lg text-gray-700">
+                📊 Previous Test Results
+              </CardTitle>
+              <CardDescription className="text-sm text-gray-500">
+                Last tested: {latestTest.created_at.toLocaleDateString()} at {latestTest.created_at.toLocaleTimeString()}
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                  <div className="text-xl font-bold text-blue-600 mb-1">
+                    {latestTest.download_speed.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-600 font-medium">
+                    📥 Download (Mbps)
+                  </div>
+                </div>
+                <div className="text-center p-3 bg-white rounded-lg shadow-sm">
+                  <div className="text-xl font-bold text-green-600 mb-1">
+                    {latestTest.upload_speed.toFixed(2)}
+                  </div>
+                  <div className="text-xs text-gray-600 font-medium">
+                    📤 Upload (Mbps)
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <div className="text-center mt-8 text-sm text-gray-500">
           <p>📈 Test your internet speed with a single click</p>
