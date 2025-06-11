@@ -10,36 +10,66 @@ function App() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [currentSpeedTestResults, setCurrentSpeedTestResults] = useState<{ download_speed: number; upload_speed: number } | null>(null);
 
+  const measureDownloadSpeed = async (): Promise<number> => {
+    const testDataSize = 5 * 1024 * 1024; // 5 MB
+    const downloadStartTime = performance.now();
+    
+    await trpc.downloadTest.query({ size: testDataSize });
+    
+    const downloadEndTime = performance.now();
+    const downloadDuration = (downloadEndTime - downloadStartTime) / 1000; // in seconds
+    const downloadSpeedMbps = (testDataSize * 8) / (downloadDuration * 1000 * 1000);
+    
+    return downloadSpeedMbps;
+  };
+
+  const measureUploadSpeed = async (): Promise<number> => {
+    const testDataSize = 2 * 1024 * 1024; // 2 MB
+    const testDataString = 'a'.repeat(testDataSize);
+    const uploadStartTime = performance.now();
+    
+    await trpc.uploadTest.mutate({ data: testDataString });
+    
+    const uploadEndTime = performance.now();
+    const uploadDuration = (uploadEndTime - uploadStartTime) / 1000; // in seconds
+    const uploadSpeedMbps = (testDataSize * 8) / (uploadDuration * 1000 * 1000);
+    
+    return uploadSpeedMbps;
+  };
+
   const handleStartTest = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setMessage(null);
 
     try {
-      // Simulate speed test by generating random numbers
-      const download_speed = Math.floor(Math.random() * (200 - 50 + 1)) + 50; // 50-200 Mbps
-      const upload_speed = Math.floor(Math.random() * (50 - 10 + 1)) + 10; // 10-50 Mbps
+      // Measure download and upload speeds
+      const downloadSpeed = await measureDownloadSpeed();
+      const uploadSpeed = await measureUploadSpeed();
 
       const testInput: CreateSpeedTestInput = {
-        download_speed,
-        upload_speed
+        download_speed: downloadSpeed,
+        upload_speed: uploadSpeed
       };
 
       // Save the speed test results to the database
       await trpc.createSpeedTest.mutate(testInput);
 
       // Update current results
-      setCurrentSpeedTestResults({ download_speed, upload_speed });
+      setCurrentSpeedTestResults({ 
+        download_speed: downloadSpeed, 
+        upload_speed: uploadSpeed 
+      });
 
       setMessage({
         type: 'success',
-        text: `🎉 Speed test completed! Download: ${download_speed} Mbps, Upload: ${upload_speed} Mbps`
+        text: `🎉 Speed test completed! Download: ${downloadSpeed.toFixed(2)} Mbps, Upload: ${uploadSpeed.toFixed(2)} Mbps`
       });
     } catch (error) {
-      console.error('Failed to create speed test:', error);
+      console.error('Failed to complete speed test:', error);
       setMessage({
         type: 'error',
-        text: '❌ Failed to record speed test. Please try again.'
+        text: '❌ Failed to complete speed test. Please try again.'
       });
     } finally {
       setIsLoading(false);
@@ -93,7 +123,7 @@ function App() {
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center p-4 bg-white rounded-lg shadow-sm">
                     <div className="text-2xl font-bold text-blue-600 mb-1">
-                      {currentSpeedTestResults.download_speed}
+                      {currentSpeedTestResults.download_speed.toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-600 font-medium">
                       📥 Download (Mbps)
@@ -101,7 +131,7 @@ function App() {
                   </div>
                   <div className="text-center p-4 bg-white rounded-lg shadow-sm">
                     <div className="text-2xl font-bold text-green-600 mb-1">
-                      {currentSpeedTestResults.upload_speed}
+                      {currentSpeedTestResults.upload_speed.toFixed(2)}
                     </div>
                     <div className="text-sm text-gray-600 font-medium">
                       📤 Upload (Mbps)

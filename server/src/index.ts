@@ -4,8 +4,11 @@ import { createHTTPServer } from '@trpc/server/adapters/standalone';
 import 'dotenv/config';
 import cors from 'cors';
 import superjson from 'superjson';
+import { z } from 'zod';
 import { createSpeedTestInputSchema } from './schema';
 import { createSpeedTest } from './handlers/create_speed_test';
+import { downloadTest } from './handlers/download_test';
+import { uploadTest } from './handlers/upload_test';
 
 const t = initTRPC.create({
   transformer: superjson,
@@ -21,6 +24,12 @@ const appRouter = router({
   createSpeedTest: publicProcedure
     .input(createSpeedTestInputSchema)
     .mutation(({ input }) => createSpeedTest(input)),
+  downloadTest: publicProcedure
+    .input(z.object({ size: z.number().int().positive() }))
+    .query(({ input }) => downloadTest(input.size)),
+  uploadTest: publicProcedure
+    .input(z.object({ data: z.string() }))
+    .mutation(({ input }) => uploadTest(input.data)),
 });
 
 export type AppRouter = typeof appRouter;
