@@ -10,6 +10,9 @@ import { createSpeedTest } from './handlers/create_speed_test';
 import { downloadTest } from './handlers/download_test';
 import { uploadTest } from './handlers/upload_test';
 
+// Internet Speed Test Application
+// Provides API endpoints for measuring and storing network speed test results
+
 const t = initTRPC.create({
   transformer: superjson,
 });
